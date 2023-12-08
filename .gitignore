@@ -1,0 +1,14 @@
+*.nix
+*.pyc
+.idea/
+__pycache__/
+artifacts
+build/
+cache
+scryto_compile.egg-info/
+dist/
+node_modules
+package-lock.json
+result
+env/
+.coverage*

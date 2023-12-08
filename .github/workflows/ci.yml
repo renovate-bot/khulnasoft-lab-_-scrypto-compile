@@ -1,0 +1,73 @@
+---
+name: CI scripts
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+  schedule:
+    # run CI every day even if no PRs/merges occur
+    - cron: '0 12 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "windows-2022"]
+        type: ["brownie", "buidler", "dapp", "embark", "hardhat", "solc", "truffle", "waffle", "foundry", "standard", "vyper", "solc_multi_file", "hardhat_multi_file"]
+        exclude:
+          # Currently broken, tries to pull git:// which is blocked by GH
+          - type: embark
+          # Requires nix
+          - os: windows-2022
+            type: dapp
+          # Explore foundry support in windows
+          - os: windows-2022
+            type: foundry
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up shell
+      if: runner.os == 'Windows'
+      run: |
+        echo 'C:\msys64\mingw64\bin' >> "$GITHUB_PATH"
+        echo 'C:\msys64\usr\bin' >> "$GITHUB_PATH"
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.15
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        pip install "solc-select>=v1.0.0b1"
+        solc-select use 0.5.7 --always-install
+        pip install .
+    - name: Set up nix
+      if: matrix.type == 'dapp'
+      uses: cachix/install-nix-action@v23
+    - name: Set up cachix
+      if: matrix.type == 'dapp'
+      uses: cachix/cachix-action@v12
+      with:
+        name: dapp
+    - name: Install Foundry
+      if: matrix.type == 'foundry'
+      uses: foundry-rs/foundry-toolchain@v1
+    - name: Run Tests
+      env:
+        TEST_TYPE: ${{ matrix.type }}
+        GITHUB_ETHERSCAN: ${{ secrets.GITHUB_ETHERSCAN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        bash "scripts/ci_test_${TEST_TYPE}.sh"
