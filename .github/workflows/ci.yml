@@ -33,7 +33,7 @@ jobs:
           - os: windows-2022
             type: foundry
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up shell
       if: runner.os == 'Windows'
       run: |
